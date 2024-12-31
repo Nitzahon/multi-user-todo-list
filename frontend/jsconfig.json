@@ -1,0 +1,6 @@
+{
+    "compilerOptions": {
+      "baseUrl": "./src", // Root of your source code
+    }
+  }
+  
