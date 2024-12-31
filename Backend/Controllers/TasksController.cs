@@ -25,17 +25,30 @@ namespace Backend.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetTasks([FromQuery] string status, [FromQuery] Guid? assignedUserId)
+        public async Task<IActionResult> GetTasks()
         {
-            var query = _context.Tasks.AsQueryable();
+            // Get the user ID and role from the token
+            var userId = GetUserIdFromToken();
+            var userRole = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
 
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(t => t.Status == status);
+            // Start with all tasks for admins; filter by assigned user for regular users
+            var query = userRole == Constants.UserRole.ADMIN
+                ? _context.Tasks.AsQueryable()
+                : _context.Tasks.Where(t => t.AssignedUserId == userId);
 
-            if (assignedUserId.HasValue)
-                query = query.Where(t => t.AssignedUserId == assignedUserId.Value);
+            // Execute the query and return results
+            var tasks = await query
+                .Select(t => new
+                {
+                    t.Id,
+                    t.Title,
+                    t.Description,
+                    t.Status,
+                    AssignedUser = t.AssignedUser.FullName,
+                    t.CreatedDate
+                })
+                .ToListAsync();
 
-            var tasks = await query.ToListAsync();
             return Ok(tasks);
         }
 
@@ -139,24 +152,48 @@ namespace Backend.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "ADMIN")]
-        public async Task<IActionResult> DeleteTask(Guid id)
+        // [HttpDelete("{id}")]
+        // [Authorize(Roles = "ADMIN")]
+        // public async Task<IActionResult> DeleteTask(Guid id)
+        // {
+        //     var changedByUserId = GetUserIdFromToken();
+
+        //     // Retrieve the user from the database
+        //     var changedByUser = await GetUserByIdAsync(changedByUserId);
+        //     if (changedByUser == null) return Unauthorized("User not found.");
+
+        //     var task = await _context.Tasks.FindAsync(id);
+        //     if (task == null) return NotFound();
+
+        //     AddTaskHistory(task, changedByUserId, changedByUser, ChangeType.TaskDeleted);
+
+        //     _context.Tasks.Remove(task);
+        //     await _context.SaveChangesAsync();
+        //     return NoContent();
+        // }
+        [HttpGet("{id}/history")]
+        [Authorize]
+        public async Task<IActionResult> GetTaskHistory(Guid id)
         {
-            var changedByUserId = GetUserIdFromToken();
+            // Fetch the task histories for the given task ID, ordered by change date
+            var taskHistories = await _context.TaskHistories
+                .Where(th => th.TaskId == id)
+                .OrderBy(th => th.ChangeDate)
+                .Select(th => new
+                {
+                    th.Id,
+                    th.ChangeDate,
+                    th.ChangeType,
+                    ChangedBy = th.ChangedByUser.FullName // Include user's full name
+                })
+                .ToListAsync();
 
-            // Retrieve the user from the database
-            var changedByUser = await GetUserByIdAsync(changedByUserId);
-            if (changedByUser == null) return Unauthorized("User not found.");
+            if (!taskHistories.Any())
+            {
+                return NotFound(new { Message = "No history found for the specified task ID." });
+            }
 
-            var task = await _context.Tasks.FindAsync(id);
-            if (task == null) return NotFound();
-
-            AddTaskHistory(task, changedByUserId, changedByUser, ChangeType.TaskDeleted);
-
-            _context.Tasks.Remove(task);
-            await _context.SaveChangesAsync();
-            return NoContent();
+            return Ok(taskHistories);
         }
         private Guid GetUserIdFromToken()
         {

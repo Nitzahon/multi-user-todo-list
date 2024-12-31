@@ -27,10 +27,6 @@ namespace Backend.Data
                     .WithMany()
                     .HasForeignKey(t => t.AssignedUserId)
                     .OnDelete(DeleteBehavior.Restrict);
-                entity.HasMany(t => t.TaskHistories)
-                    .WithOne(th => th.Task)
-                    .HasForeignKey(th => th.TaskId)
-                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // TaskHistory Entity Configuration
@@ -46,7 +42,7 @@ namespace Backend.Data
                 entity.HasOne(th => th.Task)
                     .WithMany(t => t.TaskHistories)
                     .HasForeignKey(th => th.TaskId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(th => th.ChangedByUser)
                     .WithMany()

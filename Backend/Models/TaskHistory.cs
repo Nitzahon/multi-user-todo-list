@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Models
 {
@@ -6,9 +7,10 @@ namespace Backend.Models
     {
         public Guid Id { get; set; }
 
-        public Guid? TaskId { get; set; }
+        [Required]
+        public Guid TaskId { get; set; }
 
-        public Task? Task { get; set; } = null!;
+        public Task Task { get; set; } = null!;
 
         [Required]
         public DateTime ChangeDate { get; set; } // Configure default in DbContext

@@ -4,3 +4,4 @@ node_modules/
 Backend/bin/
 Backend/obj/
 Backend/Migrations/
+multi-user-todo-list.sln
