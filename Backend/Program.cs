@@ -85,12 +85,27 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", builder =>
+    {
+        builder
+            .WithOrigins("http://localhost:5173") // Replace with your frontend's origin
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // Needed if you use cookies or authentication headers
+    });
+});
+
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
 // Configure the HTTP request pipeline
+app.UseCors("AllowFrontend");
+
 app.UseAuthentication();
 app.UseAuthorization();
 

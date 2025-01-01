@@ -1,6 +1,9 @@
 {
     "compilerOptions": {
-      "baseUrl": "./src", // Root of your source code
+      "baseUrl": "./", // Root of your source code
+      "paths": {
+        "@/*": ["src/*"], // Map '@/' to everything under 'src'
+      }
     }
   }
   

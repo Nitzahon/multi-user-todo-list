@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
@@ -7,22 +8,15 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using Backend.Constants;
 
 namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController(AppDbContext context, IConfiguration config) : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly IConfiguration _config;
-
-        public AuthController(AppDbContext context, IConfiguration config)
-        {
-            _context = context;
-            _config = config;
-        }
+        private readonly AppDbContext _context = context;
+        private readonly IConfiguration _config = config;
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginDTO loginDTO)
@@ -30,10 +24,9 @@ namespace Backend.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDTO.Email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginDTO.Password, user.PasswordHash))
                 return Unauthorized("Invalid email or password.");
-
             var token = GenerateJwtToken(user);
             Console.WriteLine("User logged in successfully.");
-            Console.WriteLine(UserRole.All);
+
             return Ok(new { Token = token });
         }
 
@@ -57,7 +50,27 @@ namespace Backend.Controllers
 
             return CreatedAtAction(nameof(Register), new { id = user.Id }, user);
         }
+        [HttpGet("user")]
+        [Authorize]
+        public IActionResult GetUser()
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
 
+            var user = _context.Users
+                .Where(u => u.Id == Guid.Parse(userId))
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FullName,
+                    u.Email
+                })
+                .FirstOrDefault();
+
+            if (user == null) return NotFound();
+
+            return Ok(user);
+        }
         private string GenerateJwtToken(User user)
         {
             var claims = new[]

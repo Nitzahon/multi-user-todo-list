@@ -3,36 +3,32 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.DTOs;
-using System.IdentityModel.Tokens.Jwt;
 using Backend.Models;
 using Backend.Constants;
+using Backend.Utils;
 using TaskStatus = Backend.Constants.TaskStatus;
-using System.Security.Claims;
+using Microsoft.Extensions.Logging;
 
 
 namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class TasksController : ControllerBase
+    public class TasksController(AppDbContext context, ILogger<TasksController> logger) : ControllerBase
     {
-        private readonly AppDbContext _context;
 
-        public TasksController(AppDbContext context)
-        {
-            _context = context;
-        }
-
+        private readonly AppDbContext _context = context;
+        private readonly ILogger<TasksController> _logger = logger;
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetTasks()
         {
             // Get the user ID and role from the token
-            var userId = GetUserIdFromToken();
-            var userRole = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            var userId = AuthUtils.GetUserIdFromToken(HttpContext);
+            var userRole = AuthUtils.GetUserRole(HttpContext);
 
             // Start with all tasks for admins; filter by assigned user for regular users
-            var query = userRole == Constants.UserRole.ADMIN
+            var query = userRole == UserRole.ADMIN
                 ? _context.Tasks.AsQueryable()
                 : _context.Tasks.Where(t => t.AssignedUserId == userId);
 
@@ -57,8 +53,8 @@ namespace Backend.Controllers
         public async Task<IActionResult> CreateTask([FromBody] TaskDTO taskDTO)
         {
 
-            var changedByUserId = GetUserIdFromToken();
-            var userRole = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
+            var changedByUserId = AuthUtils.GetUserIdFromToken(HttpContext);
+            var userRole = AuthUtils.GetUserRole(HttpContext);
 
             Guid assignedUserId;
 
@@ -79,7 +75,7 @@ namespace Backend.Controllers
             // Extract the user ID from the token
 
             // Retrieve the user from the database
-            var changedByUser = await GetUserByIdAsync(changedByUserId);
+            var changedByUser = await AuthUtils.GetUserByIdAsync(_context, changedByUserId);
             if (changedByUser == null) return Unauthorized("User not found.");
 
             var task = new Models.Task
@@ -105,8 +101,8 @@ namespace Backend.Controllers
         [Authorize(Roles = "ADMIN, USER")]
         public async Task<IActionResult> UpdateTask(Guid id, [FromBody] TaskDTO taskDTO)
         {
-            var changedByUserId = GetUserIdFromToken();
-            var userRole = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
+            var changedByUserId = AuthUtils.GetUserIdFromToken(HttpContext);
+            var userRole = AuthUtils.GetUserRole(HttpContext);
 
             if (!await _context.Users.AnyAsync(u => u.Id == taskDTO.AssignedUserId))
             {
@@ -114,7 +110,7 @@ namespace Backend.Controllers
             }
 
             // Retrieve the user from the database
-            var changedByUser = await GetUserByIdAsync(changedByUserId);
+            var changedByUser = await AuthUtils.GetUserByIdAsync(_context, changedByUserId);
             if (changedByUser == null) return Unauthorized("User not found.");
 
             var task = await _context.Tasks.FindAsync(id);
@@ -152,25 +148,6 @@ namespace Backend.Controllers
             return NoContent();
         }
 
-        // [HttpDelete("{id}")]
-        // [Authorize(Roles = "ADMIN")]
-        // public async Task<IActionResult> DeleteTask(Guid id)
-        // {
-        //     var changedByUserId = GetUserIdFromToken();
-
-        //     // Retrieve the user from the database
-        //     var changedByUser = await GetUserByIdAsync(changedByUserId);
-        //     if (changedByUser == null) return Unauthorized("User not found.");
-
-        //     var task = await _context.Tasks.FindAsync(id);
-        //     if (task == null) return NotFound();
-
-        //     AddTaskHistory(task, changedByUserId, changedByUser, ChangeType.TaskDeleted);
-
-        //     _context.Tasks.Remove(task);
-        //     await _context.SaveChangesAsync();
-        //     return NoContent();
-        // }
         [HttpGet("{id}/history")]
         [Authorize]
         public async Task<IActionResult> GetTaskHistory(Guid id)
@@ -194,16 +171,6 @@ namespace Backend.Controllers
             }
 
             return Ok(taskHistories);
-        }
-        private Guid GetUserIdFromToken()
-        {
-            var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("User ID not found in token.");
-            return Guid.Parse(userIdClaim.Value);
-        }
-
-        private async Task<User?> GetUserByIdAsync(Guid userId)
-        {
-            return await _context.Users.FindAsync(userId);
         }
 
         private void AddTaskHistory(Models.Task task, Guid userId, User user, string changeType)
