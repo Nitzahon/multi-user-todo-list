@@ -50,11 +50,11 @@ export const register = createAsyncThunk(
                 password,
                 role,
             });
-            const loginResponse = await RESTService.post(restURLs.login, null, {
+            const response = await RESTService.post(restURLs.login, null, {
                 email,
                 password,
             });
-            const token = loginResponse.token;
+            const token = response.token;
             setAuthenticationToken(token);
             localStorage.setItem("authToken", token);
             return { token }

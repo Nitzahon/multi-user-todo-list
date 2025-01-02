@@ -124,6 +124,9 @@ const RESTService = {
   put: (urlTemplate, params = null, body = null) =>
     invokeRequest(methods.PUT, { urlTemplate, params, body }),
 
+  patch: (urlTemplate, params = null, body = null) =>
+    invokeRequest(methods.PATCH, { urlTemplate, params, body }),
+  
   delete: (urlTemplate, params = null) =>
     invokeRequest(methods.DELETE, { urlTemplate, params }),
 };

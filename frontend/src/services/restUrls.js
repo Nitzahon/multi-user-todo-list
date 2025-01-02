@@ -6,8 +6,9 @@ const restURLs = {
   login: '/Auth/login',
   register: '/Auth/register',
   user: '/Auth/user',
+  users: '/Users',
   tasks: '/Tasks',
-  taskUpdate: '/Tasks/:taskId',
+  taskUpdate: '/Tasks/:id',
   taskHistory: '/Tasks/:taskId/History',
 };
 

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Utils;
-
+using Backend.Constants;
 namespace Backend.Controllers
 {
     [ApiController]
@@ -13,11 +13,18 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _dbContext = dbContext;
         [HttpGet]
-        [Authorize(Roles = "ADMIN")] // Only allow ADMINs to access this endpoint
+        [Authorize] // Only allow ADMINs to access this endpoint
         public async Task<IActionResult> GetAllUsers()
         {
+            var userId = AuthUtils.GetUserIdFromToken(HttpContext);
+            var userRole = AuthUtils.GetUserRole(HttpContext);
+
+            // Start with all tasks for admins; filter by assigned user for regular users
+            var query = userRole == UserRole.ADMIN
+                ? _dbContext.Users.AsQueryable()
+                : _dbContext.Users.Where(t => t.Id == userId);
             // Fetch users and project only required fields
-            var users = await _dbContext.Users
+            var users = await query
                 .Select(u => new
                 {
                     u.Id,

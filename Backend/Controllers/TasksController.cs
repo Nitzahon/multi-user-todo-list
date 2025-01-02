@@ -7,8 +7,7 @@ using Backend.Models;
 using Backend.Constants;
 using Backend.Utils;
 using TaskStatus = Backend.Constants.TaskStatus;
-using Microsoft.Extensions.Logging;
-
+using System.Text.Json;
 
 namespace Backend.Controllers
 {
@@ -40,7 +39,7 @@ namespace Backend.Controllers
                     t.Title,
                     t.Description,
                     t.Status,
-                    AssignedUser = t.AssignedUser.FullName,
+                    t.AssignedUserId,
                     t.CreatedDate
                 })
                 .ToListAsync();
@@ -101,8 +100,14 @@ namespace Backend.Controllers
         [Authorize(Roles = "ADMIN, USER")]
         public async Task<IActionResult> UpdateTask(Guid id, [FromBody] TaskDTO taskDTO)
         {
+
             var changedByUserId = AuthUtils.GetUserIdFromToken(HttpContext);
             var userRole = AuthUtils.GetUserRole(HttpContext);
+
+            if (!await _context.Tasks.AnyAsync(u => u.Id == id))
+            {
+                return NotFound("Task not found.");
+            }
 
             if (!await _context.Users.AnyAsync(u => u.Id == taskDTO.AssignedUserId))
             {
@@ -146,6 +151,48 @@ namespace Backend.Controllers
 
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [HttpPatch("{id}")]
+        [Authorize]
+        public async Task<IActionResult> UpdateTaskStatus(Guid id, [FromBody] JsonElement body)
+        {
+            var changedByUserId = AuthUtils.GetUserIdFromToken(HttpContext);
+            var changedByUser = await AuthUtils.GetUserByIdAsync(_context, changedByUserId);
+
+            if (!body.TryGetProperty("status", out JsonElement statusElement))
+            {
+                return BadRequest(new { message = "Missing 'status' in the request body." });
+            }
+            string? status = statusElement.GetString();
+            if (string.IsNullOrEmpty(status))
+            {
+                return BadRequest(new { message = "Invalid 'status' value." });
+            }
+
+            if (!TaskStatus.All.Contains(status))
+            {
+                return BadRequest($"Invalid status value. Allowed values are: {string.Join(", ", TaskStatus.All)}.");
+            }
+
+            var task = await _context.Tasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { message = "Task not found." });
+            }
+
+            task.Status = status;
+            _context.Tasks.Update(task);
+
+            AddTaskHistory(task, changedByUserId, changedByUser, ChangeType.Status);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Task status updated successfully.",
+                taskId = task.Id,
+                status = task.Status
+            });
         }
 
         [HttpGet("{id}/history")]

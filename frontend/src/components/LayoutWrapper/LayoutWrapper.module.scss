@@ -1,0 +1,14 @@
+.root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  
+  .content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1; // Makes the content area take up the remaining space
+    padding: 1rem;
+  }
+  

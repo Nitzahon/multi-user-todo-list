@@ -7,37 +7,28 @@ import { fetchTasks } from "@/features/tasks/taskSlice";
 import { getUser } from "@/features/users/userSlice";
 
 import Dashboard from "./Dashboard";
-import { useNavigate } from "react-router-dom";
 
 
 const DashboardContainer = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const { user, loading: userLoading, loaded: userLoaded } = useSelector((state) => state.user);
-  const { tasks, loading, loaded } = useSelector((state) => state.tasks);
+  const { user, loading: userLoading} = useSelector((state) => state.user);
+  const { tasks, loading } = useSelector((state) => state.tasks);
   
   React.useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
-    }
-  }, [isAuthenticated, navigate]);
-  
-  React.useEffect(() => {
-    if (!_.isEmpty(user) || userLoading || userLoaded || !isAuthenticated) {
+    if (!_.isEmpty(user) || userLoading) {
       return;
     }
     dispatch(getUser());
-  }, [dispatch, isAuthenticated, user, userLoaded, userLoading])
+  }, [dispatch, user, userLoading])
 
   React.useEffect(() => {    
-    if (!_.isEmpty(tasks) || loading || loaded || !isAuthenticated) {
+    if (!_.isEmpty(tasks) || loading) {
       return;
     }
     dispatch(fetchTasks());
-  }, [dispatch, isAuthenticated, loaded, loading, tasks]);
+  }, [dispatch, loading, tasks]);
   
-  return <Dashboard tasks={tasks} loading={loading || userLoading} user={user} />;
+  return <Dashboard loading={loading}/>;
 };
 
 export default DashboardContainer;
