@@ -103,7 +103,7 @@ const TaskModal = ({ users, isOpen, onClose, onSubmit, task = {} }) => {
               Cancel
             </button>
           </div>
-          {task.id && <HistoryListContainer id={task.id}/>}
+          {task?.id && <HistoryListContainer id={task.id}/>}
         </form>
       </div>
     </div>
